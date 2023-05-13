@@ -2,7 +2,7 @@ import torch
 import torch.distributed
 
 from typing import List, Optional
-
+import os
 from accelerate import init_empty_weights
 from safetensors import safe_open
 from transformers import (
@@ -29,6 +29,11 @@ try:
 except Exception as e:
     HAS_BITS_AND_BYTES = False
 
+# Get ENV variable "TRUST_REMOTE_CODE"
+# If it is set to "true", then we will trust the remote code
+# If it is set to "false", then we will not trust the remote code
+# If it is not set, then we will not trust the remote code
+TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "false").lower() == "true"
 
 class GPTNeoxSharded(CausalLM):
     def __init__(
@@ -47,19 +52,19 @@ class GPTNeoxSharded(CausalLM):
             dtype = torch.float32
 
         tokenizer = AutoTokenizer.from_pretrained(
-            model_id, revision=revision, padding_side="left", truncation_side="left"
+            model_id, revision=revision, padding_side="left", truncation_side="left",trust_remote_code=TRUST_REMOTE_CODE
         )
         tokenizer.pad_token = tokenizer.eos_token
 
         config = AutoConfig.from_pretrained(
-            model_id, revision=revision, tp_parallel=True
+            model_id, revision=revision, tp_parallel=True,trust_remote_code=TRUST_REMOTE_CODE
         )
 
         torch.distributed.barrier(group=self.process_group)
         filenames = weight_files(model_id, revision=revision, extension=".safetensors")
 
         with init_empty_weights():
-            model = AutoModelForCausalLM.from_config(config)
+            model = AutoModelForCausalLM.from_config(config,trust_remote_code=TRUST_REMOTE_CODE)
 
         torch.distributed.barrier(group=self.process_group)
         self.load_weights(

@@ -16,6 +16,15 @@ from text_generation_server.models.santacoder import SantaCoder
 from text_generation_server.models.gpt_neox import GPTNeoxSharded
 from text_generation_server.models.t5 import T5Sharded
 
+import os
+
+# Get ENV variable "TRUST_REMOTE_CODE"
+# If it is set to "true", then we will trust the remote code
+# If it is set to "false", then we will not trust the remote code
+# If it is not set, then we will not trust the remote code
+TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "false").lower() == "true"
+
+
 try:
     if torch.cuda.is_available():
         major, minor = torch.cuda.get_device_capability()
@@ -110,7 +119,8 @@ def get_model(
             santacoder_cls = FlashSantacoder if FLASH_ATTENTION else SantaCoder
             return santacoder_cls(model_id, revision, quantize=quantize)
 
-    config = AutoConfig.from_pretrained(model_id, revision=revision)
+
+    config = AutoConfig.from_pretrained(model_id, revision=revision, trust_remote_code=TRUST_REMOTE_CODE)
     model_type = config.model_type
 
     if model_type == "bloom":
@@ -155,5 +165,8 @@ def get_model(
         return CausalLM(model_id, revision, quantize=quantize)
     if model_type in modeling_auto.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES:
         return Seq2SeqLM(model_id, revision, quantize=quantize)
+
+    if "mpt" in model_id:
+        return CausalLM(model_id, revision, quantize=quantize)
 
     raise ValueError(f"Unsupported model type {model_type}")

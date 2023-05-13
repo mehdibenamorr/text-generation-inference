@@ -4,7 +4,7 @@ import torch.distributed
 import numpy as np
 
 from torch.nn import functional as F
-
+import os
 from dataclasses import dataclass
 from opentelemetry import trace
 from transformers import AutoTokenizer, PreTrainedTokenizerBase, PreTrainedModel
@@ -25,6 +25,13 @@ from text_generation_server.utils import (
 )
 
 tracer = trace.get_tracer(__name__)
+
+# Get ENV variable "TRUST_REMOTE_CODE"
+# If it is set to "true", then we will trust the remote code
+# If it is set to "false", then we will not trust the remote code
+# If it is not set, then we will not trust the remote code
+TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "false").lower() == "true"
+
 
 
 @dataclass
@@ -403,7 +410,7 @@ class FlashCausalLM(Model):
             raise NotImplementedError("FlashCausalLM is only available on GPU")
 
         tokenizer = AutoTokenizer.from_pretrained(
-            model_id, revision=revision, padding_side="left", truncation_side="left"
+            model_id, revision=revision, padding_side="left", truncation_side="left", trust_remote_code=TRUST_REMOTE_CODE
         )
         self.model = (
             model_cls.from_pretrained(
@@ -411,6 +418,7 @@ class FlashCausalLM(Model):
                 revision=revision,
                 torch_dtype=dtype,
                 load_in_8bit=quantize == "bitsandbytes",
+                trust_remote_code=TRUST_REMOTE_CODE,
             )
             .eval()
             .to(device)

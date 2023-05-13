@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from opentelemetry import trace
 from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizerBase
 from typing import Optional, Tuple, List, Type, Dict
-
+import os
 from text_generation_server.models import Model
 from text_generation_server.models.types import (
     Batch,
@@ -17,6 +17,11 @@ from text_generation_server.utils import NextTokenChooser, StoppingCriteria, Sam
 
 tracer = trace.get_tracer(__name__)
 
+# Get ENV variable "TRUST_REMOTE_CODE"
+# If it is set to "true", then we will trust the remote code
+# If it is set to "false", then we will not trust the remote code
+# If it is not set, then we will not trust the remote code
+TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "false").lower() == "true"
 
 @dataclass
 class CausalLMBatch(Batch):
@@ -461,7 +466,7 @@ class CausalLM(Model):
             dtype = torch.float32
 
         tokenizer = AutoTokenizer.from_pretrained(
-            model_id, revision=revision, padding_side="left", truncation_side="left"
+            model_id, revision=revision, padding_side="left", truncation_side="left", trust_remote_code=TRUST_REMOTE_CODE
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             model_id,
@@ -469,6 +474,7 @@ class CausalLM(Model):
             torch_dtype=dtype,
             device_map="auto" if torch.cuda.is_available() else None,
             load_in_8bit=quantize == "bitsandbytes",
+            trust_remote_code=TRUST_REMOTE_CODE,
         ).eval()
         tokenizer.pad_token_id = (
             self.model.config.pad_token_id

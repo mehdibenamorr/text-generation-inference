@@ -18,8 +18,15 @@ from text_generation_server.utils import (
     initialize_torch_distributed,
     weight_files,
 )
+import os
 
 tracer = trace.get_tracer(__name__)
+
+# Get ENV variable "TRUST_REMOTE_CODE"
+# If it is set to "true", then we will trust the remote code
+# If it is set to "false", then we will not trust the remote code
+# If it is not set, then we will not trust the remote code
+TRUST_REMOTE_CODE = os.getenv("TRUST_REMOTE_CODE", "false").lower() == "true"
 
 
 class FlashNeoX(FlashCausalLM):
@@ -43,12 +50,12 @@ class FlashNeoXSharded(FlashNeoX):
             raise NotImplementedError("FlashNeoX is only available on GPU")
 
         tokenizer = AutoTokenizer.from_pretrained(
-            model_id, revision=revision, padding_side="left", truncation_side="left"
+            model_id, revision=revision, padding_side="left", truncation_side="left",trust_remote_code=TRUST_REMOTE_CODE
         )
 
         config = AutoConfig.from_pretrained(
             model_id,
-            revision=revision,
+            revision=revision,trust_remote_code=TRUST_REMOTE_CODE
         )
 
         torch.distributed.barrier(group=self.process_group)
