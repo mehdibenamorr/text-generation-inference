@@ -123,6 +123,10 @@ def get_model(
     config = AutoConfig.from_pretrained(model_id, revision=revision, trust_remote_code=TRUST_REMOTE_CODE)
     model_type = config.model_type
 
+    # if model_type=="mpt":
+    #     mpt_cls = FlashMPT if FLASH_ATTENTION else MPT
+    #     return mpt_cls(model_id, revision, quantize=quantize)
+
     if model_type == "bloom":
         if sharded:
             return BLOOMSharded(model_id, revision, quantize=quantize)
@@ -166,7 +170,6 @@ def get_model(
     if model_type in modeling_auto.MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES:
         return Seq2SeqLM(model_id, revision, quantize=quantize)
 
-    if "mpt" in model_id:
-        return CausalLM(model_id, revision, quantize=quantize)
+
 
     raise ValueError(f"Unsupported model type {model_type}")

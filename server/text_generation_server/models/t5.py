@@ -208,14 +208,14 @@ class T5Sharded(Seq2SeqLM):
 
                             module.linear = replace_linear(state)
 
-                        elif quantize == "gptq":
-                            raise NotImplementedError(
-                                "`gptq` is not implemented for now"
-                            )
-                        elif quantize is None:
-                            tensor = tensor.to(device)
-                        else:
-                            raise ValueError(f"Unexpected quantize `{quantize}`")
+                    elif quantize == "gptq":
+                        raise NotImplementedError(
+                            "`gptq` is not implemented for now"
+                        )
+                    elif quantize is None:
+                        tensor = tensor.to(device)
+                    else:
+                        raise ValueError(f"Unexpected quantize `{quantize}`")
 
                     if current_parameter_tensor is not None:
                         module._parameters[param_name] = tensor
